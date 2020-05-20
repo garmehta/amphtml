@@ -23,26 +23,80 @@ import {user, userAssert} from '../../../src/log';
 let ConfigOptsDef;
 
 /**
+ *@typedef {{output: string, attribute: Object, vars: Object, reportLinks: Object, linkers: Object }}
+ */
+let oneTagOptsDef;
+
+/**
  * @param {!AmpElement} element
- * @return {!ConfigOptsDef}
+ * @return {!ConfigOptsDef|oneTagOptsDef}
  */
 export function getConfigOpts(element) {
   const config = getConfigJson(element);
-  userAssert(
-    config['output'],
-    'amp-link-rewriter: output config property is required'
-  );
+  let configOpts;
+  if (hasOwn(config, 'remoteConfig')) {
+    // userAssert(config['remoteConfig']['urls'],
+    // 'amp-amazon-onetag: urls config property is required');
+    // function to call api's in the 'reportLinks'
+    // some function to convert get the localConfig File from AES
+    /*
+    fuction callApis()
+    function getAesConfig()
+    */
+    const text =
+      '{' +
+      '"localConfig": {' +
+      '"output": "https://visit.foo.net/?pid=110&url=${href}&tagValue=${customerId}&impressionToken=${impressionToken}",' +
+      '"attribute": {' +
+      '"href": "((?!(https://amazon.com)).)*"' +
+      '},' +
+      '"vars": {' +
+      '"customerId": "12345",' +
+      '"impressionToken": "123456",' +
+      '"tagValue": "abc-20"' +
+      '},' +
+      '"reportlinks": {' +
+      '"url": "https://assoc-na.associates-amazon.com/onetag/pixel/",' +
+      '"slotNum": true' +
+      '},' +
+      '"linkers": {' +
+      '"enabled": true' +
+      '}' +
+      '}' +
+      '}';
+    /*
+      // pixel calling function
+      fuction reportlinks()
+    */
+    const aesConfig = JSON.parse(text);
 
-  return {
-    output: config['output'].toString(),
-    section: hasOwn(config, 'section') ? config['section'] : [],
+    configOpts = {
+      output: aesConfig['localConfig']['output'].toString(),
 
-    attribute: hasOwn(config, 'attribute')
-      ? parseAttribute(config['attribute'])
-      : {},
+      attribute: hasOwn(aesConfig['localConfig'], 'attribute')
+        ? parseAttribute(aesConfig['localConfig']['attribute'])
+        : {},
+      vars: hasOwn(aesConfig['localConfig'], 'vars')
+        ? aesConfig['localConfig']['vars']
+        : {},
+    };
+  } else {
+    userAssert(
+      config['output'],
+      'amp-link-rewriter: output config property is required'
+    );
+    configOpts = {
+      output: config['output'].toString(),
+      section: hasOwn(config, 'section') ? config['section'] : [],
 
-    vars: hasOwn(config, 'vars') ? config['vars'] : {},
-  };
+      attribute: hasOwn(config, 'attribute')
+        ? parseAttribute(config['attribute'])
+        : {},
+
+      vars: hasOwn(config, 'vars') ? config['vars'] : {},
+    };
+  }
+  return configOpts;
 }
 
 /**
