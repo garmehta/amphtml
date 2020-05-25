@@ -41,22 +41,31 @@ export function getConfigOpts(element) {
     // some function to convert get the localConfig File from AES
     /*
         fuction callApis()
-        function getAesConfig()
+        let aesConfig;
+        function success(obj)
+        {
+          aesConfig = obj;
+        }
+        fetch(config['remoteConfig']['urls'][0].toString())
+        .then(response => response.json())
+        .then(data => success(data));
         */
     const text =
       '{' +
       '"localConfig": {' +
-      '"output": "https://visit.foo.net/?pid=110&url=${href}&customerId=${customerId}&impressionToken=${impressionToken}&tagValue=${tagValue}",' +
+      '"output": "https://visit.foo.net/${impressionId}/?pid=110&url=${href}&customerId=${customerId}&impressionToken=${impressionToken}&tagValue=${tagValue}",' +
       '"attribute": {' +
-      '"href": "((?!(https://amazon.com)).)*"' +
+      // '"href": "((?!(https:\/\/amazon\.com)).)*"' +
+      '"href": "https://[^ ]*amazon.[^ ]*/?[^ ]*/?"' +
       '},' +
       '"vars": {' +
       '"customerId": "12345",' +
       '"impressionToken": "123456",' +
+      '"impressionId": "987654321",' +
       '"tagValue": "abc-20"' +
       '},' +
       '"reportlinks": {' +
-      '"url": "https://assoc-na.associates-amazon.com/onetag/pixel/",' +
+      '"url": "https://assoc-na.associates-amazon.com/onetag/${impressionId}/pixel/payload=${payload}",' +
       '"slotNum": true' +
       '},' +
       '"linkers": {' +
@@ -64,15 +73,13 @@ export function getConfigOpts(element) {
       '}' +
       '}' +
       '}';
-
-    /*
-          // pixel calling function
-          fuction reportlinks()
-        */
+    let trackingService_;
     const aesConfig = JSON.parse(text);
     configOpts = {
       output: aesConfig['localConfig']['output'].toString(),
-      section: hasOwn(aesConfig, 'section') ? aesConfig['section'] : [],
+      section: hasOwn(aesConfig['localConfig'], 'section')
+        ? aesConfig['localConfig']['section']
+        : [],
 
       attribute: hasOwn(aesConfig['localConfig'], 'attribute')
         ? parseAttribute(aesConfig['localConfig']['attribute'])
@@ -80,13 +87,47 @@ export function getConfigOpts(element) {
       vars: hasOwn(aesConfig['localConfig'], 'vars')
         ? aesConfig['localConfig']['vars']
         : {},
+      reportlinks: hasOwn(aesConfig['localConfig'], 'reportlinks')
+        ? aesConfig['localConfig']['reportlinks']
+        : {},
       linkers: hasOwn(aesConfig['localConfig'], 'linkers')
         ? aesConfig['localConfig']['linkers']
         : {},
     };
-    // if (hasOwn(aesConfig['localconfig'], 'linkers')) {
-    //   const transitId = amznTransitRecorder(aesConfig);
-    // }
+
+    /*const targetNode = document.getElementsByTagName('a');
+        const targetNodeConfig = {attributes: true, childList: true, subtree: true};
+        const callback = function(mutationsList, observer) {
+          for(let mutation of mutationsList) {
+              
+              if (mutation.type === 'childList') {
+                  console.log('A child node has been added or removed.');
+              }
+              else if (mutation.type === 'attributes') {
+                  console.log(mutation);
+                  console.log('The ' + mutation.attributeName + ' attribute was modified.');
+              }
+          }
+        }
+        const observer = new MutationObserver(callback);
+        try {
+          for(let i = 0 ; i < targetNode.length ; i++)
+          observer.observe(targetNode[i], targetNodeConfig);  
+        } 
+        catch (error) {
+          console.log("Error : "+ error);  
+        }
+        // An example of for making analytics calls using 
+        // CustomEventReporterBuilder Api
+        // **********************************************************
+        // const builder = new CustomeEventReporterBuilder(element);
+        // builder.track('onetag_pageload','assoc-na.associates-amazon.com/onetag/{impressionId}/pixel');
+        // const reporter = builder.build();
+        // getIdPromise.then(impressionId => 
+        // {
+        //   reporter.trigger('onetag_pageload',{'impressionId' : impressionId});
+        // });
+        */
   } else {
     userAssert(
       config['output'],
@@ -103,7 +144,6 @@ export function getConfigOpts(element) {
       vars: hasOwn(config, 'vars') ? config['vars'] : {},
     };
   }
-
   return configOpts;
 }
 
@@ -136,29 +176,20 @@ function parseAttribute(attribute) {
 }
 
 /**
- * @param {!Object} aesConfig
- * @return {Object}
+ * Initialise tracking module.
+ * @return {!./tracking.Tracking}
+ * @private
  */
-
-// function amznTransitRecorder(aesConfig) {
-//   const that = {};
-//   const TRANSIT_ID_KEY = 'assocPayloadId';
-//   const trackingEnabled = aesConfig['localConfig']['linkers']['enabled'];
-//   const TRANSIT_ID_VALUE = JSON.stringify(aesConfig['localConfig']['vars']);
-
-//   if (trackingEnabled === 'false') {
-//     return that;
-//   }
-
-//   if (trackingEnabled === 'true' && !getTransitId()) {
-//     sessionStorage.setItem(TRANSIT_ID_KEY, TRANSIT_ID_VALUE);
-//   }
-
-//   //To check if the 'assocPayloadId' is already present
-//   function getTransitId() {
-//     const existingTransitId = sessionStorage.getItem(TRANSIT_ID_KEY);
-//     return existingTransitId;
-//   }
-
-//   return sessionStorage.getItem(TRANSIT_ID_KEY);
-// }
+function initTracking_() {
+  // 'amp-analytics' API is waiting for CommonSignals.LOAD_START to be
+  // triggered before sending requests.
+  // Normally CommonSignals.LOAD_START is sent from layoutCallback but since
+  // we are using layout = 'nodisplay', 'layoutCallback' is never called.
+  // We need to call it manually to have CustomEventReporterBuilder working.
+  this.signals().signal(CommonSignals.LOAD_START);
+  return new Tracking(
+    this.element,
+    this.skimOptions_,
+    /** @type {string} */ (this.referrer_)
+  );
+}

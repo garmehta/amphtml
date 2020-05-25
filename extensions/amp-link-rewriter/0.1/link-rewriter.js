@@ -37,7 +37,7 @@ export class LinkRewriter {
     /** @private {!../../../src/service/ampdoc-impl.AmpDoc} */
     this.ampDoc_ = ampDoc;
 
-    /** @private {?Object} */
+    /** @private {?Object}*/
     this.configOpts_ = getConfigOpts(ampElement);
 
     /** @private {Array<!Element>} */

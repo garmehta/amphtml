@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import {hasOwn} from '../../../src/utils/object';
 import {iterateCursor} from '../../../src/dom';
 
 /**
@@ -38,9 +39,21 @@ export function getScopeElements(ampDoc, configOpts) {
       filteredSelection.push(element);
     }
   });
-
+  if (hasOwn(configOpts, 'reportLinks')) {
+    if (
+      hasOwn(configOpts['reportLinks'], 'slotNum') &&
+      configOpts['reportLinks']['slotNum'] == true
+    ) {
+      for (let i = 0; i < filteredSelection.length; i++) {
+        filteredSelection[i].setAttribute('data-slot-num', i);
+        console.log(filteredSelection[i]);
+      }
+    }
+  }
   return filteredSelection;
 }
+
+/**/
 
 /**
  * Match attributes of the anchor if have been defined in config
