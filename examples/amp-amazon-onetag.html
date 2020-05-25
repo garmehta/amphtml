@@ -10,25 +10,16 @@
     <script async src="https://cdn.ampproject.org/v0.js"></script>
 </head>
 <body>
-<amp-link-rewriter layout="nodisplay">
+<amp-amazon-onetag layout="nodisplay">
     <script type="application/json">
         {
-            "output": "https://visit.foo.net/visit?pid=110&url=${href}&cid=${customerId}&mid=${merchantId}&ref=DOCUMENT_REFERRER&location=SOURCE_URL&rel=${rel}",
-            "section": [
-                "#track-section"
-            ],
-            "attribute": {
-                "href": "((?!\bskip-example\\.com\b|\balso-skip\\.com\b).)*",
-                "class": "content"
-            },
-            "vars": {
-                "customerId": "12345",
-                "merchantId": "3234"
-            }
+            "remoteConfig": {
+		"urls" : ["https://assoc-na.associates-amazon.com/onetag/config/${impressionId}/${transitId}?instanceId=ABC&marketplace=GB","xx"]
+		}
         }
     </script>
-</amp-link-rewriter>
-<p id="track-section">
+</amp-amazon-onetag>
+<p>
     <a class="content" href="https://www.amazon.de/dp/B01KU8Z8P8/">Stelton Theo Milk Jug</a>
 </p>
 </body>

@@ -55,7 +55,6 @@ export class AmpLinkRewriter extends AMP.BaseElement {
       this.element,
       this.getAmpDoc()
     );
-
     this.attachClickEvent_();
   }
 
@@ -80,4 +79,5 @@ export class AmpLinkRewriter extends AMP.BaseElement {
 
 AMP.extension('amp-link-rewriter', '0.1', (AMP) => {
   AMP.registerElement('amp-link-rewriter', AmpLinkRewriter);
+  AMP.registerElement('amp-amazon-onetag', AmpLinkRewriter);
 });
