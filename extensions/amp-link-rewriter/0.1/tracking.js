@@ -134,7 +134,7 @@ export class Tracking {
   fireCalls(element) {
     const linkImpression = dict({
       'refUrl': this.referrer_,
-      'assocPayloadID': transitId_,
+      'assocPayloadID': this.transitId_,
       'pageTitle': this.ampDoc_.getRootNode().title,
       'trackingId': 'apartmentth0a20', // get it from local config
       'logType': 'onetag_pageload', // get it from local config
