@@ -39,13 +39,13 @@ export function getScopeElements(ampDoc, configOpts) {
       filteredSelection.push(element);
     }
   });
-  if (hasOwn(configOpts, 'reportLinks')) {
+  if (hasOwn(configOpts, 'reportlinks')) {
     if (
-      hasOwn(configOpts['reportLinks'], 'slotNum') &&
-      configOpts['reportLinks']['slotNum'] == true
+      hasOwn(configOpts['reportlinks'], 'slotNum') &&
+      configOpts['reportlinks']['slotNum'] == true
     ) {
       for (let i = 0; i < filteredSelection.length; i++) {
-        filteredSelection[i].setAttribute('data-slot-num', i);
+        filteredSelection[i].setAttribute('slotNum', i);
         console.log(filteredSelection[i]);
       }
     }
