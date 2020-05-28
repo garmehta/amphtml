@@ -61,7 +61,6 @@ export class Tracking {
    *
    * @param {!AmpElement} element
    * @return {Object}
-   * @private
    */
   setUpAnalytics(element) {
     const analyticsBuilder = new CustomEventReporterBuilder(element);
@@ -84,7 +83,8 @@ export class Tracking {
   }
 
   /**
-   * @private
+   * @param
+   * @return
    */
   sendPageImpression() {
     const pageImpression = dict({
@@ -103,7 +103,8 @@ export class Tracking {
   }
 
   /**
-   * @private
+   * @param
+   * @return
    */
   sendLinkImpressions() {
     for (let i = 0; i < this.listElements_.length; i++) {
@@ -128,8 +129,8 @@ export class Tracking {
   }
 
   /**
-   * @private
    * @param element
+   * @return
    */
   fireCalls(element) {
     const linkImpression = dict({
@@ -140,8 +141,8 @@ export class Tracking {
       'logType': 'onetag_pageload', // get it from local config
     });
     linkImpression['destinationUrl'] = element.href;
-    linkImpression['slotNum'] = i; //Bug here we havr to retire slotNumber from tag's attribute
-    linkImpression['linkCode'] = 'w' + (60 + i); // will have to fix this too
+    linkImpression['slotNum'] = 1; //Bug here we havr to retire slotNumber from tag's attribute
+    linkImpression['linkCode'] = 'w' + (60 + 1); // will have to fix this too
     this.analytics_.trigger(
       'link-tracker',
       dict({

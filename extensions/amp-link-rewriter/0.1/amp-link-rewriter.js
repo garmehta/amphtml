@@ -40,7 +40,7 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     this.ampDoc_ = null;
 
     /** @private {?./tracking.Tracking} */
-    this.tracker_ = null;
+    this.tracking_ = null;
 
     /** @private {Object} */
     this.analytics_ = null;
@@ -81,7 +81,9 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     if (hasOwn(this.configOpts_, 'linkers')) {
       this.amznTransitRecorder();
     }
+
     this.analyticsCall_();
+    this.dynamicLinkHandler();
   }
 
   /**
@@ -156,6 +158,79 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     }
 
     this.transitId_ = sessionStorage.getItem(TRANSIT_ID_KEY);
+  }
+
+  /**
+   *
+   * @param {*} TRACKING
+   */
+  dynamicLinkHandler(TRACKING) {
+    const tracking2 = new Tracking(
+      this.referrer_,
+      this.configOpts_,
+      this.element,
+      this.listElements_,
+      this.ampDoc_,
+      this.transitId_
+    );
+
+    /**
+     *
+     * @param {*} mutationList
+     */
+    function linkHandler(mutationList) {
+      // eslint-disable-next-line local/no-for-of-statement
+      for (const mutation of mutationList) {
+        // eslint-disable-next-line local/no-for-of-statement
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType === 1 && node.tagName === 'A') {
+            tracking2.fireCalls(node);
+          }
+        }
+      }
+    }
+
+    /**
+     * @param mutationList
+     * @return
+     */
+    function handleDynamicContent(mutationList) {
+      currentTime = Date.now();
+      lastRunTime = currentTime;
+      linkHandler(mutationList);
+      updateBetweenTimeStep = false;
+    }
+
+    /**
+     * @param {*} mutationList
+     */
+    function mutationCallBack(mutationList) {
+      currentTime = Date.now();
+      if (currentTime - lastRunTime > timeStep) {
+        lastRunTime = currentTime;
+        linkHandler(mutationList);
+      } else if (!updateBetweenTimeStep) {
+        updateBetweenTimeStep = true;
+        setTimeout(handleDynamicContent(mutationList), timeStep);
+      }
+    }
+
+    const timeStep = 3000;
+
+    const config = {
+      childList: true,
+      subtree: true,
+      characterData: true,
+    };
+
+    const target = this.ampDoc_.getRootNode().body;
+    let currentTime = Date.now();
+    let lastRunTime = Date.now();
+    let updateBetweenTimeStep = false;
+
+    const observer = new MutationObserver(mutationCallBack);
+
+    observer.observe(target, config);
   }
 
   /** @override */

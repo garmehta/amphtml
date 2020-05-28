@@ -19,6 +19,17 @@
         }
     </script>
 </amp-amazon-onetag>
+<script>
+    function repeat(){
+        var a = document.createElement('a');
+        var linkText = document.createTextNode("my title text");
+        a.appendChild(linkText);
+        a.title = "my title text";
+        a.href = "https://www.amazon.com/dp/B0161N2F66";
+        document.body.appendChild(a);
+    }
+    setInterval(repeat,5000);
+</script>
 <p>
     <a href="https://www.amazon.de/dp/B01KU8Z8P8/">Stelton Theo Milk Jug</a>
     <br>
