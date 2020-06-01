@@ -27,6 +27,12 @@
         a.title = "my title text";
         a.href = "https://www.amazon.com/dp/B0161N2F66";
         document.body.appendChild(a);
+        var b = document.createElement('a');
+        var linkText = document.createTextNode("hello google");
+        b.appendChild(linkText);
+        b.title = "my title text";
+        b.href = "https://www.google.com";
+        document.body.appendChild(b);
     }
     setInterval(repeat,5000);
 </script>
@@ -38,6 +44,8 @@
     <a href="https://www.google.com/">"Google Web Search !!"</a>
     <br>
     <a href="https://www.amazon.com/dp/B0161N2F66">Intelligent Investor</a>
+    <br>
+    <a href="https://www.amazon.com/OXO-Expandable-Dresser-Drawer-Divider/dp/B077GFXBW8/">Amazon India</a>
 </p>
 </body>
 </html>

@@ -33,22 +33,21 @@ export function getScopeElements(ampDoc, configOpts) {
     cssSelector = cssSelector + ' a';
     selection = doc.querySelectorAll(cssSelector);
   }
-
-  iterateCursor(selection, (element) => {
-    if (hasAttributeValues(element, configOpts)) {
-      filteredSelection.push(element);
-    }
-  });
-  if (hasOwn(configOpts, 'reportlinks')) {
-    if (
-      hasOwn(configOpts['reportlinks'], 'slotNum') &&
-      configOpts['reportlinks']['slotNum'] == true
-    ) {
-      for (let i = 0; i < filteredSelection.length; i++) {
-        filteredSelection[i].setAttribute('slotNum', i);
-        console.log(filteredSelection[i]);
+  if (hasOwn(configOpts, 'remoteConfig')) {
+    iterateCursor(selection, (element) => {
+      if (isAmznlink(element)) {
+        if (configOpts['reportlinks']['slotNum'] === true) {
+          element.setAttribute('data-slot-num', filteredSelection.length);
+        }
+        filteredSelection.push(element);
       }
-    }
+    });
+  } else {
+    iterateCursor(selection, (element) => {
+      if (hasAttributeValues(element, configOpts)) {
+        filteredSelection.push(element);
+      }
+    });
   }
   return filteredSelection;
 }
@@ -66,10 +65,29 @@ export function getScopeElements(ampDoc, configOpts) {
 function hasAttributeValues(htmlElement, configOpts) {
   const anchorAttr = configOpts.attribute;
   const attrKeys = Object.keys(anchorAttr);
-
   return attrKeys.every((key) => {
     const reg = new RegExp(anchorAttr[key]);
-
     return reg.test(htmlElement.getAttribute(key));
   });
+}
+
+/**
+ * Selects all amazon links matching the Regex
+ * @param {!Node} htmlElement
+ * @return {*}
+ */
+export function isAmznlink(htmlElement) {
+  const href = String(htmlElement.href);
+  const amznLinkRegex = new RegExp(
+    ('^(http|https)://(www|[w-.]+)?amazon.(' + 'ca') |
+      'cn' |
+      'fr' |
+      'de' |
+      'in' |
+      'co.uk' |
+      'co.jp' |
+      ('com' + ')/?'),
+    'i'
+  );
+  return amznLinkRegex.test(href);
 }

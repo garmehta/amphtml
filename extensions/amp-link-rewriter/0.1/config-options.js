@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import {childElementsByTag} from '../../../src/dom';
 import {getChildJsonConfig} from '../../../src/json';
 import {hasOwn} from '../../../src/utils/object';
 import {user, userAssert} from '../../../src/log';
@@ -40,7 +41,7 @@ export function getConfigOpts(element) {
       '"localConfig": {' +
       '"output": "https://visit.foo.net/${impressionId}/?pid=110&url=${href}&customerId=${customerId}&impressionToken=${impressionToken}&tagValue=${tagValue}",' +
       '"attribute": {' +
-      '"href": "https://[^ ]*amazon.[^ ]*/?[^ ]*/?"' +
+      '"href": "(https|http)://([^ ])*amazon.(com|de|fr|in|ca|cn|co.uk|co.jp)*/?[^ ]*/?"' +
       '},' +
       '"vars": {' +
       '"customerId": "12345",' +
@@ -50,15 +51,32 @@ export function getConfigOpts(element) {
       '},' +
       '"reportlinks": {' +
       '"url": "https://assoc-na.associates-amazon.com/onetag/${impressionId}/pixel?assoc_payload=${assoc_payload}",' +
-      '"slotNum": true' +
+      '"pageload": {' +
+      '"trackingId": "apartmentth0a20",' +
+      '"logType": "Onetag_pageload",' +
+      '"linkCode": "w49"' +
       '},' +
+      '"linkload": {' +
+      '"trackingId": "apartmentth0a20",' +
+      '"logType": "Onetag_textlink",' +
+      '"linkCode": "w50"' +
+      '},' +
+      '"slotNum": true,' +
+      '"referrer": true,' +
+      '"pageTitle": true' +
+      '}, ' +
       '"linkers": {' +
       '"enabled": true' +
       '}' +
       '}' +
       '}';
+    const scripts = childElementsByTag(element, 'script');
+    const remoteConfig = JSON.parse(scripts[0].innerHTML);
     const aesConfig = JSON.parse(text);
+    const finalConfig = Object.assign(remoteConfig, aesConfig);
+    scripts[0].innerHTML = JSON.stringify(finalConfig);
     configOpts = {
+      remoteConfig: aesConfig['remoteConfig'],
       output: aesConfig['localConfig']['output'].toString(),
       section: hasOwn(aesConfig['localConfig'], 'section')
         ? aesConfig['localConfig']['section']

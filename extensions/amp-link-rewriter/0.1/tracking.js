@@ -15,6 +15,7 @@
  */
 import {CustomEventReporterBuilder} from '../../../src/extension-analytics.js';
 import {dict} from '../../../src/utils/object';
+import {isAmznlink} from './scope';
 
 /**
  *@typedef {{output: string, attribute: Object, vars: Object, reportLinks: Object, linkers: Object }}
@@ -28,7 +29,7 @@ export class Tracking {
    * @param {!AmpElement} ampElement
    * @param {!Array<!Element>} listElements
    * @param {!../../../src/service/ampdoc-impl.AmpDoc} ampDoc
-   * @param {string} transitId
+   * @param transitId
    */
   constructor(
     referrer,
@@ -47,23 +48,29 @@ export class Tracking {
     /** @private {Array<!Element>} */
     this.listElements_ = listElements;
 
+    this.ampElement_ = ampElement;
+
     /** @private {!Object} */
-    this.analytics_ = this.setUpAnalytics(ampElement);
+    this.analytics_ = null;
 
     /** @private {?../../../src/service/ampdoc-impl.AmpDoc} */
     this.ampDoc_ = ampDoc;
 
-    /** @private {string} */
+    /**@private {string} */
     this.transitId_ = transitId;
+
+    /** @private {number} */
+    this.slotNum = -1;
   }
 
   /**
    *
    * @param {!AmpElement} element
-   * @return {Object}
+   * @return {Promise}
+   * @private
    */
-  setUpAnalytics(element) {
-    const analyticsBuilder = new CustomEventReporterBuilder(element);
+  setUpAnalytics() {
+    const analyticsBuilder = new CustomEventReporterBuilder(this.ampElement_);
     analyticsBuilder.track(
       'page-tracker',
       this.configOpts_['reportlinks']['url']
@@ -79,22 +86,34 @@ export class Tracking {
         'xhrpost': false,
       })
     );
-    return analyticsBuilder.build();
+    const _this = this;
+    return new Promise(function (resolve) {
+      _this.analytics_ = analyticsBuilder.build();
+      resolve();
+      return;
+    });
   }
 
+  // pixel call for page
   /**
-   * @param
-   * @return
+   * @private
    */
   sendPageImpression() {
-    const pageImpression = dict({
-      'refUrl': this.referrer_,
-      'assocPayloadID': this.transitId_,
-      'pageTitle': this.ampDoc_.getRootNode().title,
-      'trackingId': 'apartmentth0a20', // get it from local config
-      'logType': 'onetag_pageload', // get it from local config
-      'linkCode': 'w49', // get it from local config
-    });
+    const pageImpression = dict(this.configOpts_['reportlinks']['pageload']);
+    if (this.configOpts_['reportlinks']['referrer'] === true) {
+      pageImpression['refUrl'] = this.referrer_;
+    }
+    if (this.configOpts_['linkers']['enabled'] === true) {
+      pageImpression['assocPayloadId'] = this.transitId_;
+    } else {
+      pageImpression['assocPayloadId'] =
+        this.configOpts_['vars']['impressionToken'] +
+        '-' +
+        this.configOpts_['vars']['impressionId'];
+    }
+    if (this.configOpts_['reportlinks']['pageTitle'] === true) {
+      pageImpression['pageTitle'] = this.ampDoc_.getRootNode().title;
+    }
     const pageConfig = dict({
       'impressionId': this.configOpts_['vars']['impressionId'],
       'assoc_payload': JSON.stringify(pageImpression),
@@ -102,22 +121,33 @@ export class Tracking {
     this.analytics_.trigger('page-tracker', pageConfig);
   }
 
+  // pixel call for each link matching the regex
   /**
-   * @param
-   * @return
+   * @private
    */
-  sendLinkImpressions() {
+  sendLinkImpression() {
     for (let i = 0; i < this.listElements_.length; i++) {
-      const linkImpression = dict({
-        'refUrl': this.referrer_,
-        'assocPayloadID': this.transitId_,
-        'pageTitle': this.ampDoc_.getRootNode().title,
-        'trackingId': 'apartmentth0a20', // get it from local config
-        'logType': 'onetag_pageload', // get it from local config
-      });
+      const linkImpression = dict(this.configOpts_['reportlinks']['linkload']);
+      if (this.configOpts_['reportlinks']['referrer'] === true) {
+        linkImpression['refUrl'] = this.referrer_;
+      }
+      if (this.configOpts_['linkers']['enabled'] === true) {
+        linkImpression['assocPayloadId'] = this.transitId_;
+      } else {
+        linkImpression['assocPayloadId'] =
+          this.configOpts_['vars']['impressionToken'] +
+          '-' +
+          this.configOpts_['vars']['impressionId'];
+      }
+      if (this.configOpts_['reportlinks']['pageTitle'] === true) {
+        linkImpression['pageTitle'] = this.ampDoc_.getRootNode().title;
+      }
       linkImpression['destinationUrl'] = this.listElements_[i].href;
-      linkImpression['slotNum'] = i; //Bug here we havr to retire slotNumber from tag's attribute
-      linkImpression['linkCode'] = 'w' + (60 + i); // will have to fix this too
+      if (this.configOpts_['reportlinks']['slotNum'] === true) {
+        linkImpression['slotNum'] = this.listElements_[i].getAttribute(
+          'data-slot-num'
+        );
+      }
       this.analytics_.trigger(
         'link-tracker',
         dict({
@@ -126,29 +156,46 @@ export class Tracking {
         })
       );
     }
+    this.slotNum = this.listElements_.length;
   }
 
+  // pixel call for matching every link
+  // added dynamically
   /**
+   * @private
    * @param element
-   * @return
+   * @param
    */
   fireCalls(element) {
-    const linkImpression = dict({
-      'refUrl': this.referrer_,
-      'assocPayloadID': this.transitId_,
-      'pageTitle': this.ampDoc_.getRootNode().title,
-      'trackingId': 'apartmentth0a20', // get it from local config
-      'logType': 'onetag_pageload', // get it from local config
-    });
-    linkImpression['destinationUrl'] = element.href;
-    linkImpression['slotNum'] = 1; //Bug here we havr to retire slotNumber from tag's attribute
-    linkImpression['linkCode'] = 'w' + (60 + 1); // will have to fix this too
-    this.analytics_.trigger(
-      'link-tracker',
-      dict({
-        'impressionId': this.configOpts_['vars']['impressionId'],
-        'assoc_payload': JSON.stringify(linkImpression),
-      })
-    );
+    if (isAmznlink(element)) {
+      const linkImpression = dict(this.configOpts_['reportlinks']['linkload']);
+      if (this.configOpts_['reportlinks']['referrer'] === true) {
+        linkImpression['refUrl'] = this.referrer_;
+      }
+      if (this.configOpts_['linkers']['enabled'] === true) {
+        linkImpression['assocPayloadId'] = this.transitId_;
+      } else {
+        linkImpression['assocPayloadId'] =
+          this.configOpts_['vars']['impressionToken'] +
+          '-' +
+          this.configOpts_['vars']['impressionId'];
+      }
+      if (this.configOpts_['reportlinks']['pageTitle'] === true) {
+        linkImpression['pageTitle'] = this.ampDoc_.getRootNode().title;
+      }
+      linkImpression['destinationUrl'] = element.href;
+      if (this.configOpts_['reportlinks']['slotNum'] === true) {
+        element.setAttribute('data-slot-num', this.slotNum);
+        linkImpression['slotNum'] = this.slotNum;
+        this.slotNum = this.slotNum + 1;
+      }
+      this.analytics_.trigger(
+        'link-tracker',
+        dict({
+          'impressionId': this.configOpts_['vars']['impressionId'],
+          'assoc_payload': JSON.stringify(linkImpression),
+        })
+      );
+    }
   }
 }

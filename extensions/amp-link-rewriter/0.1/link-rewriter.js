@@ -17,7 +17,7 @@
 import {Services} from '../../../src/services';
 import {getConfigOpts} from './config-options';
 import {getDataParamsFromAttributes} from '../../../src/dom';
-import {getScopeElements} from './scope';
+import {getScopeElements, isAmznlink} from './scope';
 
 const WL_ANCHOR_ATTR = ['href', 'id', 'rel', 'rev'];
 const PREFIX_DATA_ATTR = /^vars(.+)/;
@@ -121,6 +121,17 @@ export class LinkRewriter {
     }
 
     return false;
+  }
+
+  // adds links added dynamically
+  // to  listElements_
+  /**
+   * @param {!Element} element
+   */
+  updateList(element) {
+    if (isAmznlink(element)) {
+      this.listElements_.push(element);
+    }
   }
 
   /**

@@ -20,6 +20,8 @@ import {LinkRewriter} from './link-rewriter';
 import {Priority} from '../../../src/service/navigation';
 import {Services} from '../../../src/services';
 import {Tracking} from './tracking';
+import {amznTransitRecorder, dynamicLinkHandler} from './dynamic-handler';
+
 import {hasOwn} from '../../../src/utils/object';
 
 export class AmpLinkRewriter extends AMP.BaseElement {
@@ -40,13 +42,10 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     this.ampDoc_ = null;
 
     /** @private {?./tracking.Tracking} */
-    this.tracking_ = null;
+    this.tracking = null;
 
-    /** @private {Object} */
-    this.analytics_ = null;
-
-    /**@private {string} */
-    this.transitId_ = '';
+    /** @private {string} */
+    this.transitId = '';
   }
 
   /** @override */
@@ -77,13 +76,14 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     );
     this.configOpts_ = this.rewriter_.configOpts_;
     this.listElements_ = this.rewriter_.listElements_;
-    this.attachClickEvent_();
-    if (hasOwn(this.configOpts_, 'linkers')) {
-      this.amznTransitRecorder();
+    if (
+      hasOwn(this.configOpts_, 'linkers') &&
+      this.configOpts_['linkers']['enabled'] === true
+    ) {
+      this.transitId = amznTransitRecorder(this.configOpts_);
     }
-
+    this.attachClickEvent_();
     this.analyticsCall_();
-    this.dynamicLinkHandler();
   }
 
   /**
@@ -99,10 +99,8 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     return true;
   }
 
-  /**
-   *
-   * @param {*} layout
-   */
+  // setups analytics for firing
+  // pixel calls
   analyticsCall_() {
     if (hasOwn(this.configOpts_, 'reportlinks')) {
       this.ampDoc_.waitForBodyOpen().then(() => {
@@ -113,124 +111,27 @@ export class AmpLinkRewriter extends AMP.BaseElement {
           this.element,
           this.listElements_,
           this.ampDoc_,
-          this.transitId_
+          this.transitId
         );
-        this.tracking.sendPageImpression();
-        this.tracking.sendLinkImpressions();
-        //we'll use fireCalls to make analytics calls
-        //  in case we any anchor tag is added dynamically
-        // this.tracking.firecalls(element);
+        this.tracking.setUpAnalytics().then(() => {
+          this.tracking.sendPageImpression();
+          this.tracking.sendLinkImpression();
+          dynamicLinkHandler(
+            this.tracking,
+            this.ampDoc_,
+            this.configOpts_,
+            this.rewriter_
+          );
+        });
       });
+    } else {
+      dynamicLinkHandler(
+        this.tracking,
+        this.ampDoc_,
+        this.configOpts_,
+        this.rewriter_
+      );
     }
-  }
-
-  /**
-   * @param {*} layout
-   * @return
-   */
-  amznTransitRecorder() {
-    const configObject = this.configOpts_;
-    const that = '';
-    const TRANSIT_ID_KEY = 'assocPayloadId';
-    const trackingEnabled = configObject['linkers']['enabled'];
-    const TRANSIT_ID_VALUE =
-      configObject['vars']['impressionToken'] +
-      '-' +
-      configObject['vars']['impressionId'];
-
-    if (trackingEnabled === false) {
-      return that;
-    }
-
-    if (trackingEnabled === true && !getTransitId()) {
-      sessionStorage.setItem(TRANSIT_ID_KEY, TRANSIT_ID_VALUE);
-    }
-
-    //To check if the 'assocPayloadId' is already present
-
-    /**
-     *
-     * @return {string}
-     */
-    function getTransitId() {
-      const existingTransitId = sessionStorage.getItem(TRANSIT_ID_KEY);
-      return existingTransitId;
-    }
-
-    this.transitId_ = sessionStorage.getItem(TRANSIT_ID_KEY);
-  }
-
-  /**
-   *
-   * @param {*} TRACKING
-   */
-  dynamicLinkHandler(TRACKING) {
-    const tracking2 = new Tracking(
-      this.referrer_,
-      this.configOpts_,
-      this.element,
-      this.listElements_,
-      this.ampDoc_,
-      this.transitId_
-    );
-
-    /**
-     *
-     * @param {*} mutationList
-     */
-    function linkHandler(mutationList) {
-      // eslint-disable-next-line local/no-for-of-statement
-      for (const mutation of mutationList) {
-        // eslint-disable-next-line local/no-for-of-statement
-        for (const node of mutation.addedNodes) {
-          if (node.nodeType === 1 && node.tagName === 'A') {
-            tracking2.fireCalls(node);
-          }
-        }
-      }
-    }
-
-    /**
-     * @param mutationList
-     * @return
-     */
-    function handleDynamicContent(mutationList) {
-      currentTime = Date.now();
-      lastRunTime = currentTime;
-      linkHandler(mutationList);
-      updateBetweenTimeStep = false;
-    }
-
-    /**
-     * @param {*} mutationList
-     */
-    function mutationCallBack(mutationList) {
-      currentTime = Date.now();
-      if (currentTime - lastRunTime > timeStep) {
-        lastRunTime = currentTime;
-        linkHandler(mutationList);
-      } else if (!updateBetweenTimeStep) {
-        updateBetweenTimeStep = true;
-        setTimeout(handleDynamicContent(mutationList), timeStep);
-      }
-    }
-
-    const timeStep = 3000;
-
-    const config = {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    };
-
-    const target = this.ampDoc_.getRootNode().body;
-    let currentTime = Date.now();
-    let lastRunTime = Date.now();
-    let updateBetweenTimeStep = false;
-
-    const observer = new MutationObserver(mutationCallBack);
-
-    observer.observe(target, config);
   }
 
   /** @override */
