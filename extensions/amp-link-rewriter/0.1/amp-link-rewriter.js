@@ -125,12 +125,12 @@ export class AmpLinkRewriter extends AMP.BaseElement {
         });
       });
     } else {
-      dynamicLinkHandler(
-        this.tracking,
-        this.ampDoc_,
-        this.configOpts_,
-        this.rewriter_
-      );
+      // dynamicLinkHandler(
+      //   this.tracking,
+      //   this.ampDoc_,
+      //   this.configOpts_,
+      //   this.rewriter_
+      // );
     }
   }
 

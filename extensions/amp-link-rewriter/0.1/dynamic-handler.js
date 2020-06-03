@@ -1,3 +1,4 @@
+/* eslint-disable local/no-for-of-statement */
 /**
  * Copyright 2020 The AMP HTML Authors. All Rights Reserved.
  *
@@ -56,6 +57,12 @@ function getTransitId() {
   return existingTransitId;
 }
 
+//Global
+let currentTime = Date.now();
+let lastRunTime = Date.now();
+let updateBetweenTimeStep = false;
+let properties;
+let unprocessedList;
 /**
  * @param {!./tracking.Tracking} tracking
  * @param {!../../../src/service/ampdoc-impl.AmpDoc} ampDoc
@@ -64,61 +71,101 @@ function getTransitId() {
  * @param {!./link-rewriter.LinkRewriter}
  */
 export function dynamicLinkHandler(tracking, ampDoc, configOpts, rewriter) {
-  const tracking_ = tracking;
-  const ampDoc_ = ampDoc;
-  const configOpts_ = configOpts;
-  const rewriter_ = rewriter;
-  const target = ampDoc_.getRootNode().body;
-  let currentTime = Date.now();
-  let lastRunTime = Date.now();
-  let updateBetweenTimeStep = false;
-  const timeStep = 3000;
-  const config = {
-    childList: true,
-    subTree: true,
-    characterData: true,
+  properties = {
+    tracking_: tracking,
+    ampDoc_: ampDoc,
+    configOpts_: configOpts,
+    rewriter_: rewriter,
+    target: ampDoc.getRootNode().body,
+    timeStep: 3000,
+    config: {
+      childList: true,
+      subTree: true,
+      characterData: true,
+    },
   };
-  const observer = new MutationObserver(mutationCallBack);
-  observer.observe(target, config);
-  /**
-   * @param {*} mutationList
-   */
-  function mutationCallBack(mutationList) {
-    currentTime = Date.now();
-    if (currentTime - lastRunTime > timeStep) {
-      lastRunTime = currentTime;
-      linkHandler(mutationList);
-    } else if (!updateBetweenTimeStep) {
-      updateBetweenTimeStep = true;
-      setTimeout(handleDynamicContent(mutationList), timeStep);
-    }
-  }
-  /**
-   * @param mutationList
-   * @return
-   */
-  function handleDynamicContent(mutationList) {
-    currentTime = Date.now();
-    lastRunTime = currentTime;
-    linkHandler(mutationList);
-    updateBetweenTimeStep = false;
+  unprocessedList = new Array();
+  //alert('It is working');
+  if (hasOwn(properties.configOpts_, 'reportlinks')) {
+    const observer = new MutationObserver(mutationCallBack);
+    observer.observe(properties.target, properties.config);
+  } else {
+    const observer = new MutationObserver(updateCallBack);
+    observer.observe(properties.target, properties.config);
   }
 
-  /**
-   *
-   * @param {*} mutationList
-   */
-  function linkHandler(mutationList) {
-    for (const mutation of mutationList) {
-      for (const node of mutation.addedNodes) {
-        if (node.nodeType === 1 && node.tagName === 'A') {
-          {
-            if (hasOwn(configOpts_, 'reportlinks')) {
-              tracking_.fireCalls(node);
-            }
-            rewriter_.updateList(node);
-          }
+  //To process the unprocessed links
+  setInterval(periodicCheck, 2000);
+}
+
+/**
+ * @param {*} mutationList
+ */
+function periodicCheck() {
+  const sampleTime = Date.now();
+  if (unprocessedList.length > 0 && sampleTime - lastRunTime >= 3000) {
+    for (const mutation of unprocessedList) {
+      linkHandler(mutation);
+    }
+    unprocessedList.length = 0;
+    lastRunTime = sampleTime;
+  }
+}
+
+/**
+ * @param {*} mutationList
+ */
+function mutationCallBack(mutationList) {
+  currentTime = Date.now();
+  //alert('It is called');
+  if (currentTime - lastRunTime > properties.timeStep) {
+    lastRunTime = currentTime;
+    linkHandler(mutationList, properties);
+  } else if (!updateBetweenTimeStep) {
+    updateBetweenTimeStep = true;
+    setTimeout(handleDynamicContent, properties.timeStep, mutationList);
+  } else {
+    //pushing in unprocessed list of type mutation
+    unprocessedList.push(mutationList);
+  }
+}
+
+/**
+ * @param {*} mutationList
+ */
+function updateCallBack(mutationList) {
+  for (const mutation of mutationList) {
+    // eslint-disable-next-line local/no-for-of-statement
+    for (const node of mutation.addedNodes) {
+      if (node.nodeType === 1 && node.tagName === 'A') {
+        properties.rewriter_.updateList(node);
+      }
+    }
+  }
+}
+
+/**
+ * @param mutationList
+ */
+function handleDynamicContent(mutationList) {
+  currentTime = Date.now();
+  lastRunTime = currentTime;
+  linkHandler(mutationList);
+  updateBetweenTimeStep = false;
+}
+
+/**
+ * @param mutationList
+ */
+function linkHandler(mutationList) {
+  for (const mutation of mutationList) {
+    // eslint-disable-next-line local/no-for-of-statement
+    for (const node of mutation.addedNodes) {
+      if (node.nodeType === 1 && node.tagName === 'A') {
+        if (hasOwn(properties.configOpts_, 'reportlinks')) {
+          properties.tracking_.fireCalls(node);
         }
+        properties.rewriter_.updateList(node);
       }
     }
   }
