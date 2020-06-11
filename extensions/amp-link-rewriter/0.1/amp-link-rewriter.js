@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+import 'regenerator-runtime/runtime';
 import {CommonSignals} from '../../../src/common-signals';
 import {Layout} from '../../../src/layout';
 import {LinkRewriter} from './link-rewriter';
@@ -22,12 +23,16 @@ import {Services} from '../../../src/services';
 import {Tracking} from './tracking';
 import {amznTransitRecorder, dynamicLinkHandler} from './dynamic-handler';
 
+import {getChildJsonConfig} from '../../../src/json';
+import {getConfigOpts, oneTagConfig} from './config-options';
 import {hasOwn} from '../../../src/utils/object';
 
 export class AmpLinkRewriter extends AMP.BaseElement {
   /** @param {!AmpElement} element */
   constructor(element) {
     super(element);
+
+    this.element_ = element;
 
     /** @private {?./link-rewriter.LinkRewriter} */
     this.rewriter_ = null;
@@ -46,6 +51,15 @@ export class AmpLinkRewriter extends AMP.BaseElement {
 
     /** @private {string} */
     this.transitId = '';
+
+    /** @private {object} */
+    this.config = null;
+
+    /** @private {Array<!Element>} */
+    this.listElements_ = null;
+
+    /** @private {object} */
+    this.remoteConfig = null;
   }
 
   /** @override */
@@ -53,6 +67,23 @@ export class AmpLinkRewriter extends AMP.BaseElement {
     this.ampDoc_ = this.getAmpDoc();
 
     const viewer = Services.viewerForDoc(this.ampDoc_);
+
+    this.config = getChildJsonConfig(this.element_);
+
+    if (hasOwn(this.config, 'remoteConfig')) {
+      return this.getAmpDoc()
+        .whenReady()
+        .then(() => viewer.getReferrerUrl())
+        .then((referrer) => (this.referrer_ = referrer))
+        .then(() =>
+          fetch(
+            'https://cgungobkk2.execute-api.us-east-1.amazonaws.com/live/confignumber'
+          )
+        )
+        .then((response) => response.json())
+        .then((data) => (this.remoteConfig = data))
+        .then(this.amazonOneTag_.bind(this));
+    }
 
     /**
      * We had to get referrerUrl here because when we use expandUrlSync()
@@ -74,16 +105,32 @@ export class AmpLinkRewriter extends AMP.BaseElement {
       this.element,
       this.getAmpDoc()
     );
-    this.configOpts_ = this.rewriter_.configOpts_;
+    this.configOpts_ = getConfigOpts(this.element_);
+    this.rewriter_.configOpts_ = this.configOpts_;
+    this.rewriter_.setListElements();
+    this.attachClickEvent_();
+  }
+
+  /**
+   * @private
+   */
+  amazonOneTag_() {
+    this.rewriter_ = new LinkRewriter(
+      this.referrer_,
+      this.element,
+      this.getAmpDoc()
+    );
+    this.configOpts_ = oneTagConfig(this.element_, this.remoteConfig);
+    this.rewriter_.configOpts_ = this.configOpts_;
+    this.rewriter_.setListElements();
     this.listElements_ = this.rewriter_.listElements_;
-    if (
-      hasOwn(this.configOpts_, 'linkers') &&
-      this.configOpts_['linkers']['enabled'] === true
-    ) {
+    if (hasOwn(this.configOpts_, 'linkers')) {
       this.transitId = amznTransitRecorder(this.configOpts_);
     }
     this.attachClickEvent_();
-    this.analyticsCall_();
+    if (hasOwn(this.configOpts_, 'reportlinks')) {
+      this.analyticsCall_();
+    }
   }
 
   /**
@@ -102,7 +149,7 @@ export class AmpLinkRewriter extends AMP.BaseElement {
   // setups analytics for firing
   // pixel calls
   analyticsCall_() {
-    if (hasOwn(this.configOpts_, 'reportlinks')) {
+    if (hasOwn(this.configOpts_['reportlinks'], 'url')) {
       this.ampDoc_.waitForBodyOpen().then(() => {
         this.signals().signal(CommonSignals.LOAD_START);
         this.tracking = new Tracking(
@@ -125,12 +172,14 @@ export class AmpLinkRewriter extends AMP.BaseElement {
         });
       });
     } else {
-      // dynamicLinkHandler(
-      //   this.tracking,
-      //   this.ampDoc_,
-      //   this.configOpts_,
-      //   this.rewriter_
-      // );
+      // in this case dynamicLinkHandler only re-writes the dynamic
+      // links which are added and match the Amazon Regex
+      dynamicLinkHandler(
+        this.tracking,
+        this.ampDoc_,
+        this.configOpts_,
+        this.rewriter_
+      );
     }
   }
 

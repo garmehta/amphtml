@@ -38,10 +38,14 @@ export class LinkRewriter {
     this.ampDoc_ = ampDoc;
 
     /** @private {?Object}*/
-    this.configOpts_ = getConfigOpts(ampElement);
+    this.configOpts_ = null;
+
+    // this.configOpts_ = getConfigOpts(ampElement);
 
     /** @private {Array<!Element>} */
-    this.listElements_ = getScopeElements(this.ampDoc_, this.configOpts_);
+    this.listElements_ = null;
+
+    // this.listElements_ = getScopeElements(this.ampDoc_, this.configOpts_);
 
     /** @private {string} */
     this.referrer_ = referrer;
@@ -125,13 +129,20 @@ export class LinkRewriter {
 
   // adds links added dynamically
   // to  listElements_
+
   /**
    * @param {!Element} element
    */
-  updateList(element) {
+  updateList_(element) {
     if (isAmznlink(element)) {
       this.listElements_.push(element);
     }
+  }
+  /**
+   * @param {!Element} element
+   */
+  setListElements() {
+    this.listElements_ = getScopeElements(this.ampDoc_, this.configOpts_);
   }
 
   /**

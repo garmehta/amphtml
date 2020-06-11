@@ -1,4 +1,3 @@
-/* eslint-disable local/no-for-of-statement */
 /**
  * Copyright 2020 The AMP HTML Authors. All Rights Reserved.
  *
@@ -15,6 +14,7 @@
  * limitations under the License.
  */
 import {hasOwn} from '../../../src/utils/object';
+import {isAmznlink} from './scope';
 
 /**
  *@typedef {{output: string, attribute: Object, vars: Object, reportLinks: Object, linkers: Object }}
@@ -67,8 +67,7 @@ let unprocessedList;
  * @param {!./tracking.Tracking} tracking
  * @param {!../../../src/service/ampdoc-impl.AmpDoc} ampDoc
  * @param {!oneTagOptsDef} configOpts
- * @param rewriter
- * @param {!./link-rewriter.LinkRewriter}
+ * @param {!./link-rewriter.LinkRewriter} rewriter
  */
 export function dynamicLinkHandler(tracking, ampDoc, configOpts, rewriter) {
   properties = {
@@ -86,16 +85,15 @@ export function dynamicLinkHandler(tracking, ampDoc, configOpts, rewriter) {
   };
   unprocessedList = new Array();
   //alert('It is working');
-  if (hasOwn(properties.configOpts_, 'reportlinks')) {
+  if (hasOwn(properties.configOpts_['reportlinks'], 'url')) {
     const observer = new MutationObserver(mutationCallBack);
     observer.observe(properties.target, properties.config);
+    //To process the unprocessed links
+    setInterval(periodicCheck, 2000);
   } else {
     const observer = new MutationObserver(updateCallBack);
     observer.observe(properties.target, properties.config);
   }
-
-  //To process the unprocessed links
-  setInterval(periodicCheck, 2000);
 }
 
 /**
@@ -104,6 +102,7 @@ export function dynamicLinkHandler(tracking, ampDoc, configOpts, rewriter) {
 function periodicCheck() {
   const sampleTime = Date.now();
   if (unprocessedList.length > 0 && sampleTime - lastRunTime >= 3000) {
+    // eslint-disable-next-line local/no-for-of-statement
     for (const mutation of unprocessedList) {
       linkHandler(mutation);
     }
@@ -134,11 +133,12 @@ function mutationCallBack(mutationList) {
  * @param {*} mutationList
  */
 function updateCallBack(mutationList) {
+  // eslint-disable-next-line local/no-for-of-statement
   for (const mutation of mutationList) {
     // eslint-disable-next-line local/no-for-of-statement
     for (const node of mutation.addedNodes) {
       if (node.nodeType === 1 && node.tagName === 'A') {
-        properties.rewriter_.updateList(node);
+        properties.rewriter_.updateList_(node);
       }
     }
   }
@@ -158,6 +158,7 @@ function handleDynamicContent(mutationList) {
  * @param mutationList
  */
 function linkHandler(mutationList) {
+  // eslint-disable-next-line local/no-for-of-statement
   for (const mutation of mutationList) {
     // eslint-disable-next-line local/no-for-of-statement
     for (const node of mutation.addedNodes) {
@@ -165,7 +166,7 @@ function linkHandler(mutationList) {
         if (hasOwn(properties.configOpts_, 'reportlinks')) {
           properties.tracking_.fireCalls(node);
         }
-        properties.rewriter_.updateList(node);
+        properties.rewriter_.updateList_(node);
       }
     }
   }
